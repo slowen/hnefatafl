@@ -1,7 +1,7 @@
 # hnefatafl
 Hnefatafl is an ancient Viking strategy board game. There are two teams- an attacking team and a defending team. The attacking team tries to capture the other team's king, whereas the defending team tries to get their king to one of the corners of the board.
 
-![startgame](/images/start_game.jpg)
+![startgame](https://cloud.githubusercontent.com/assets/5671974/8666780/faf2ba88-29c3-11e5-8d53-a7349d4e76b4.png)
 
 #Rules of the Game
 
