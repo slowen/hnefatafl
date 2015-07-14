@@ -38,3 +38,6 @@ Right now, players can take turns moving pieces, and only valid moves can be mad
 
 #Future
 Once the aforementioned limitations are addressed, some of the underlying data representations will be altered. In order of AI to be implemented intelligently, it makes sense to store the move states as bitboards. That way, it is very simple and computationally cheap to determine what moves are valid, and the computer can quickly iterate through many possible playouts to chose its next move.
+
+#Resources
+If you want to learn more about Hnefatafl, check out http://tafl.cyningstan.com/. It explains the game really well and has some great advice on strategy for both sides.
