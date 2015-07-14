@@ -12,3 +12,29 @@ Every piece can move in the same way- just like a rook in chess. They can move h
 Players can capture their opponents pieces by sandwiching an opponents piece. The center and corners are considered hostile territory, so they can be used to sandwich/capture an opponent. For instance, if the defending player moves their piece such that they sandwich an attacking piece between their piece and the corner, then the attacking piece is removed from the board.
 
 The king is captured when is is enclosed on all four sides.
+
+#Running the Game
+The only imported packages are sys and pygame. To install pygame on Unix: 
+```
+sudo apt-get install python-pygame
+```
+
+To run the file, simply run:
+```
+python hnefatafl.py
+```
+
+The text on the bottom will tell you whose turn it is (red is the attacker, blue is the defender, and the king is green).
+
+#Limitations
+The game is not quite finished yet. Four things still need to be implemented:
+
+1. Pieces cannot be captured yet.
+2. The game does not end if the king is captured.
+3. The game does not end if the king makes it to a corner.
+4. It cannot detect a draw. 
+
+Right now, players can take turns moving pieces, and only valid moves can be made. It seems to run very smoothly and is quite stable, but just not complete yet.
+
+#Future
+Once the aforementioned limitations are addressed, some of the underlying data representations will be altered. In order of AI to be implemented intelligently, it makes sense to store the move states as bitboards. That way, it is very simple and computationally cheap to determine what moves are valid, and the computer can quickly iterate through many possible playouts to chose its next move.
