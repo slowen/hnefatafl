@@ -28,9 +28,17 @@ class Move(object):
 
         a_turn: Bool which is true when its the Attacker's turn, false o.w.
         selected: Bool which is true if a piece has been selected to move.
+        king_killed: Bool which is true if the king has been killed.
+        escaped: Bool which is true if the king escaped
+        game_over: Bool which is true if either player has won or its a draw
+        restart: Bool which pauses game and asks if players want to restart
         """
         self.a_turn = True
         self.selected = False
+        self.king_killed = False
+        self.escaped = False
+        self.game_over = False
+        self.restart = False
 
     def select(self, piece):
         """Allow players to select one of their pieces to move.
@@ -49,7 +57,7 @@ class Move(object):
             self.selected = True
             piece.color = (71, 166, 169)
             self.row = piece.x_tile
-            self.column = piece.y_tile
+            self.col = piece.y_tile
             self.vm = self.valid_moves(piece.special_sqs)
         else:
             self.selected = False
@@ -95,9 +103,87 @@ class Move(object):
         col = pos[1] // (WIDTH // 11)
         if (row, col) in self.vm:
             piece.pos_cent(row, col)
+            self.row = row
+            self.col = col
             return True
         else:
             return False
+
+    def king_escaped(self, Kings):
+        """Check if king has moved onto a corner square."""
+        king = (Kings.sprites()[0].x_tile, Kings.sprites()[0].y_tile)
+        if king in SPECIALSQS.difference([(5, 5)]):
+            self.escaped = True
+            self.game_over = True
+
+    def remove_pieces(self, g1, g2, Kings):
+        """Determine if any pieces need to be removed from the board.
+
+        check_pts is a list of four tuples. Each tuple is a tuple of tile
+        coordinates, the first of which is directly next to the square
+        where the piece moved, and the second of which is two squares away
+        in the same direction. First, the function checks to see if there is
+        an opponent's piece adjacent to where the player just moved his
+        piece. If there is one, then it checks if the other side of the
+        opponenet's piece is either occupied by the player's piece or if it
+        is an unoccupied hostile territory (SPECIALSQS). If either of those
+        is true, then the piece is captured, and removed from the board.
+
+        Args:
+            g1 (Group(sprites)): the opponent's pieces
+            g2 (Group(sprites)): the current player's pieces
+            Kings (Group(sprites)): the group containing the king
+        """
+        check_pts = set([((self.row, self.col + 1), (self.row, self.col + 2)),
+                         ((self.row + 1, self.col), (self.row + 2, self.col)),
+                         ((self.row, self.col - 1), (self.row, self.col - 2)),
+                         ((self.row - 1, self.col), (self.row - 2, self.col))])
+        captured = []
+        king = (Kings.sprites()[0].x_tile, Kings.sprites()[0].y_tile)
+        for square in check_pts:
+            if square[0] == king:
+                if Kings.sprites()[0] in g1:
+                    if self.kill_king(king[0], king[1], g2):
+                        self.king_killed = True
+                        self.game_over = True
+                        captured.append(Kings.sprites()[0])
+            else:
+                for p1 in g1:
+                    if (p1.x_tile, p1.y_tile) == square[0]:
+                        for p2 in g2:
+                            if (p2.x_tile, p2.y_tile) == (square[1]):
+                                captured.append(p1)
+                            elif square[1] in SPECIALSQS:
+                                if square[1] != king:
+                                    captured.append(p1)
+        for a in captured:
+            a.kill()
+
+    def kill_king(self, x, y, attackers):
+        """Determine if the king has been killed.
+
+        The king is killed if it is surrounded on all four sides by attacking
+        pieces or hostile territories.
+
+        Args:
+            x (int): x tile coordinate of the king
+            y (int): y tile coordinate of the king
+
+        Returns:
+            True if king has been killed, False o.w.
+        """
+        kill_pts = set([(x, y + 1), (x + 1, y), (x, y - 1), (x - 1, y)])
+        kill_pts.difference_update(SPECIALSQS)
+        attack_pts = set()
+        for pt in kill_pts:
+            for a in attackers:
+                try:
+                    attack_pts.add((a.x_tile, a.y_tile))
+                except KeyError:
+                    pass
+        kill_pts.difference_update(attack_pts)
+        if not kill_pts:
+            return True
 
     def left_bound(self):
         """Find the all valid moves to the left of the selected piece.
@@ -116,10 +202,10 @@ class Move(object):
             if temp_row < 0:
                 return vm
             for p in Pieces:
-                ppos = self.ppos_cent(temp_row, self.column)
+                ppos = self.ppos_cent((temp_row, self.col))
                 if p.rect.collidepoint(ppos):
                     return vm
-            vm.add((temp_row, self.column))
+            vm.add((temp_row, self.col))
             temp_row -= 1
 
     def right_bound(self):
@@ -140,10 +226,10 @@ class Move(object):
             if temp_row > 10:
                 return vm
             for p in Pieces:
-                ppos = self.ppos_cent(temp_row, self.column)
+                ppos = self.ppos_cent((temp_row, self.col))
                 if p.rect.collidepoint(ppos):
                     return vm
-            vm.add((temp_row, self.column))
+            vm.add((temp_row, self.col))
             temp_row += 1
 
     def up_bound(self):
@@ -158,13 +244,13 @@ class Move(object):
                                 valid moves above.
         """
         vm = set()
-        temp_col = self.column - 1
+        temp_col = self.col - 1
         clear = True
         while clear:
             if temp_col < 0:
                 return vm
             for p in Pieces:
-                ppos = self.ppos_cent(self.row, temp_col)
+                ppos = self.ppos_cent((self.row, temp_col))
                 if p.rect.collidepoint(ppos):
                     return vm
             vm.add((self.row, temp_col))
@@ -182,13 +268,13 @@ class Move(object):
                                 valid moves below.
         """
         vm = set()
-        temp_col = self.column + 1
+        temp_col = self.col + 1
         clear = True
         while clear:
             if temp_col > 10:
                 return vm
             for p in Pieces:
-                ppos = self.ppos_cent(self.row, temp_col)
+                ppos = self.ppos_cent((self.row, temp_col))
                 if p.rect.collidepoint(ppos):
                     return vm
             vm.add((self.row, temp_col))
@@ -205,7 +291,7 @@ class Move(object):
         """
         return x*(GSIZE + (GSIZE // 12)) + (GSIZE // 12)
 
-    def ppos_cent(self, x, y):
+    def ppos_cent(self, (x, y)):
         """Find the center pixel position of a given tile.
 
         Args:
@@ -216,13 +302,6 @@ class Move(object):
             (int, int): tuple of the center pixel location of tile
         """
         return (self.ppos(x) + (GSIZE // 2), self.ppos(y) + (GSIZE // 2))
-
-    def remove_pieces(self):
-        """Determine if any pieces need to be removed from the board.
-
-        Note: This function may exist outside of the Move class. Not sure yet.
-        """
-        pass
 
     def end_turn(self, piece):
         """Perform some cleanup to end the turn.
@@ -430,7 +509,7 @@ def initialize_pieces(board):
                 King(x, y)
 
 
-def update_image(screen, board, move):
+def update_image(screen, board, move, text, text2):
     """Update the image that the users see.
 
     Note:
@@ -456,51 +535,73 @@ def update_image(screen, board, move):
 
     """Write which player's turn it is on the bottom of the window."""
     font = pygame.font.Font(None, 36)
-    if move.a_turn:
-        text = font.render("Attacker's Turn!", 1, (0, 0, 0))
+    msg = font.render(text, 1, (0, 0, 0))
+    msgpos = msg.get_rect()
+    if text2:
+        msg2 = font.render(text2, 1, (0, 0, 0))
+        msgpos2 = msg2.get_rect()
+        msgpos.centerx = screen.get_rect().centerx
+        msgpos.centery = ((HEIGHT - WIDTH) / 7) + WIDTH
+        msgpos2.centerx = screen.get_rect().centerx
+        msgpos2.centery = (5 * (HEIGHT - WIDTH) / 7) + WIDTH
+        screen.blit(msg, msgpos)
+        screen.blit(msg2, msgpos2)
     else:
-        text = font.render("Defender's Turn!", 1, (0, 0, 0))
-    textpos = text.get_rect()
-    textpos.centerx = screen.get_rect().centerx
-    textpos.centery = ((HEIGHT - WIDTH) / 2) + WIDTH
+        msgpos.centerx = screen.get_rect().centerx
+        msgpos.centery = ((HEIGHT - WIDTH) / 2) + WIDTH
+        screen.blit(msg, msgpos)
 
-    screen.blit(text, textpos)
     pygame.display.flip()
 
 
-def main():
-    """Main function- initializes game, acts on events, and renders game.
+def run_game(screen):
+    """Start and run a new game of hnefatafl.
 
     The game, groups, board, move info, screen, and pieces are initialized
     first. Then, the game starts. It runs in a while loop, which will exit
-    if the user closes out of the game. The only other event that it listens
+    if the user closes out of the game. Another event that it listens
     for is a MOUSEBUTTONDOWN event; the game takes action when the user clicks
     on the board. If a piece has not been selected yet and the user clicks on
     one of his pieces, then the piece will be selected and change colors. The
     user can click on this piece again to deselect it, or they can click
     on a square that is a valid move for that piece. If it is a valid move,
-    the piece will move there and it is the next person's turn.
+    the piece will move there and it is the next person's turn. The game
+    also listens for KEYDOWN event. If the game has ended or the player wants
+    to restart the game, it will listen for 'y' or 'n'. If the player wants
+    to restart the game, they can press 'r', which will require confirmation
+    before actually restarting.
 
-    Note:
-        Three more functions must be implemented for the game to be complete.
-            1) Remove captured pieces from the board.
-            2) End the game if the king makes it to a corner.
-            3) End the game if the king is captured.
+    Args:
+        screen (pygame.Surface): The game window
+
+    Returns:
+        True if players want a new game, False o.w.
     """
-    pygame.init()
-    initialize_groups()
     board = Board()
     move = Move()
-    screen = pygame.display.set_mode(WINDOW_SIZE)
     initialize_pieces(board)
-
     while 1:
         for event in pygame.event.get():
             if event.type == QUIT:
                 sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if move.game_over and event.key == pygame.K_n:
+                    return False
+                if move.game_over and event.key == pygame.K_y:
+                    return True
+                if move.restart and event.key == pygame.K_n:
+                    move.restart = False
+                if move.restart and event.key == pygame.K_y:
+                    return True
+                if event.key == pygame.K_r:
+                    move.restart = True
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 pos = pygame.mouse.get_pos()
-                if not move.selected:
+                if move.game_over:
+                    pass
+                elif move.restart:
+                    pass
+                elif not move.selected:
                     if move.a_turn:
                         for piece in Attackers:
                             if piece.rect.collidepoint(pos):
@@ -516,10 +617,55 @@ def main():
                         move.select(Current.sprites()[0])
                         Current.empty()
                     elif move.is_valid_move(pos, Current.sprites()[0]):
-                        move.remove_pieces()
+                        if Current.sprites()[0] in Kings:
+                            move.king_escaped(Kings)
+                        if move.a_turn:
+                            move.remove_pieces(Defenders, Attackers, Kings)
+                        else:
+                            move.remove_pieces(Attackers, Defenders, Kings)
                         move.end_turn(Current.sprites()[0])
                         Current.empty()
-        update_image(screen, board, move)
+
+        """Text to display on bottom of game."""
+        text2 = None
+        if move.a_turn:
+            text = "Attacker's Turn"
+        if not move.a_turn:
+            text = "Defender's Turn"
+        if move.escaped:
+            text = "King escaped! Defenders win!"
+            text2 = "Play again? y/n"
+        if move.king_killed:
+            text = "King killed! Attackers win!"
+            text2 = "Play again? y/n"
+        if move.restart:
+            text = "Restart game? y/n"
+        update_image(screen, board, move, text, text2)
+
+
+def cleanup():
+    """Empty out all groups of sprites.
+
+    Note:
+        Although this works for now, I don't think that it properly deletes
+        all of the sprites. Must fix this.
+    """
+    Current.empty()
+    Kings.empty()
+    Defenders.empty()
+    Attackers.empty()
+    Pieces.empty()
+
+
+def main():
+    """Main function- initializes screen and starts new games."""
+    pygame.init()
+    screen = pygame.display.set_mode(WINDOW_SIZE)
+    initialize_groups()
+    play = True
+    while play:
+        play = run_game(screen)
+        cleanup()
 
 if __name__ == '__main__':
     main()
