@@ -85,7 +85,7 @@ class Move(object):
             vm.difference_update(SPECIALSQS)
         return vm
 
-    def is_valid_move(self, pos, piece):
+    def is_valid_move(self, pos, piece, tile_coords=False):
         """Determine if the selected move is valid or not.
 
         The function finds the tile on the board where the player wants to move
@@ -99,8 +99,13 @@ class Move(object):
         Returns:
             bool: True if valid move, false o.w.
         """
-        row = pos[0] // (WIDTH // 11)
-        col = pos[1] // (WIDTH // 11)
+        if tile_coords:
+            row = pos[0]
+            col = pos[1]
+        else:
+            row = pos[0] // (WIDTH // 11)
+            col = pos[1] // (WIDTH // 11)
+
         if (row, col) in self.vm:
             piece.pos_cent(row, col)
             self.row = row
