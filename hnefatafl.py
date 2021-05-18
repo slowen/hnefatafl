@@ -85,7 +85,7 @@ class Move(object):
             vm.difference_update(SPECIALSQS)
         return vm
 
-    def is_valid_move(self, pos, piece):
+    def is_valid_move(self, pos, piece, tile_coords=False):
         """Determine if the selected move is valid or not.
 
         The function finds the tile on the board where the player wants to move
@@ -99,8 +99,13 @@ class Move(object):
         Returns:
             bool: True if valid move, false o.w.
         """
-        row = pos[0] // (WIDTH // 11)
-        col = pos[1] // (WIDTH // 11)
+        if tile_coords:
+            row = pos[0]
+            col = pos[1]
+        else:
+            row = pos[0] // (WIDTH // 11)
+            col = pos[1] // (WIDTH // 11)
+
         if (row, col) in self.vm:
             piece.pos_cent(row, col)
             self.row = row
@@ -202,7 +207,7 @@ class Move(object):
             if temp_row < 0:
                 return vm
             for p in Pieces:
-                ppos = self.ppos_cent((temp_row, self.col))
+                ppos = self.ppos_cent(temp_row, self.col)
                 if p.rect.collidepoint(ppos):
                     return vm
             vm.add((temp_row, self.col))
@@ -226,7 +231,7 @@ class Move(object):
             if temp_row > 10:
                 return vm
             for p in Pieces:
-                ppos = self.ppos_cent((temp_row, self.col))
+                ppos = self.ppos_cent(temp_row, self.col)
                 if p.rect.collidepoint(ppos):
                     return vm
             vm.add((temp_row, self.col))
@@ -250,7 +255,7 @@ class Move(object):
             if temp_col < 0:
                 return vm
             for p in Pieces:
-                ppos = self.ppos_cent((self.row, temp_col))
+                ppos = self.ppos_cent(self.row, temp_col)
                 if p.rect.collidepoint(ppos):
                     return vm
             vm.add((self.row, temp_col))
@@ -274,7 +279,7 @@ class Move(object):
             if temp_col > 10:
                 return vm
             for p in Pieces:
-                ppos = self.ppos_cent((self.row, temp_col))
+                ppos = self.ppos_cent(self.row, temp_col)
                 if p.rect.collidepoint(ppos):
                     return vm
             vm.add((self.row, temp_col))
@@ -291,7 +296,7 @@ class Move(object):
         """
         return x*(GSIZE + (GSIZE // 12)) + (GSIZE // 12)
 
-    def ppos_cent(self, (x, y)):
+    def ppos_cent(self, x, y):
         """Find the center pixel position of a given tile.
 
         Args:
@@ -408,15 +413,15 @@ class Piece(pygame.sprite.Sprite):
         self.y_tile = y
         self.x_px = self.pos(x) + (GSIZE // 2)
         self.y_px = self.pos(y) + (GSIZE // 2)
-        self.rect = pygame.Rect([self.x_px - GSIZE/2,
-                                 self.y_px - GSIZE/2,
+        self.rect = pygame.Rect([self.x_px - GSIZE//2,
+                                 self.y_px - GSIZE//2,
                                  GSIZE,
                                  GSIZE])
 
     def draw(self, screen):
         """Draw the piece on the board in the correct location."""
         pygame.draw.circle(screen, self.color, [self.x_px, self.y_px],
-                           GSIZE/2)
+                           GSIZE//2)
 
 
 class Attacker(Piece):
